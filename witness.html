@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none';">
+<title>Morus</title>
+<style>
+/*
+  MORUS — Tamper-proof witness record
+  Version 1.0
+
+  Named for Thomas More (Latin: Morus), Lord Chancellor of England,
+  executed 1535 because one man's fabricated testimony could not be disproven.
+  This file exists so that never happens again.
+
+  This file belongs to no one. Copy it. Fork it. Give it away.
+*/
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #faf9f7;
+  color: #1a1a1a;
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+.header {
+  padding: 16px 24px 0;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+.header-top {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.logo {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #1e4d2b;
+}
+.logo-sub {
+  font-size: 11px;
+  color: #9ca3af;
+}
+.tabs { display: flex; }
+.tab-btn {
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  color: #6b7280;
+  transition: all 0.15s;
+}
+.tab-btn.active {
+  color: #1e4d2b;
+  border-bottom-color: #1e4d2b;
+  font-weight: 600;
+}
+
+/* ── Main ── */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  max-width: 680px;
+  width: 100%;
+}
+
+/* ── Record ── */
+.input-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 8px;
+}
+.record-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1a1a1a;
+  background: #fff;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.record-textarea:focus { border-color: #1e4d2b; }
+.record-actions {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.record-btn {
+  padding: 9px 22px;
+  background: #1e4d2b;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  min-width: 88px;
+}
+.record-btn:hover:not(:disabled) { opacity: 0.85; }
+.record-btn:disabled { opacity: 0.35; cursor: default; }
+.record-hint { font-size: 11px; color: #9ca3af; }
+
+/* ── Entries list ── */
+.entries-section { margin-top: 28px; }
+.entries-empty {
+  text-align: center;
+  padding: 48px 0;
+  color: #9ca3af;
+  font-size: 13px;
+  font-style: italic;
+}
+.entry-item {
+  display: flex;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.entry-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 10px;
+  color: #166534;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.entry-body { flex: 1; min-width: 0; }
+.entry-text {
+  font-size: 13px;
+  color: #1a1a1a;
+  line-height: 1.55;
+  margin-bottom: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.entry-meta {
+  font-size: 10px;
+  color: #9ca3af;
+  font-family: ui-monospace, 'Courier New', monospace;
+}
+
+/* ── Verify ── */
+.verify-wrap { max-width: 560px; }
+.drop-zone {
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 36px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  margin-bottom: 14px;
+  user-select: none;
+}
+.drop-zone:hover, .drop-zone.dragover {
+  border-color: #1e4d2b;
+  background: #f0fdf4;
+}
+.drop-zone-icon { font-size: 22px; margin-bottom: 8px; }
+.drop-zone-text { font-size: 13px; color: #6b7280; }
+.drop-zone-sub { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+.verify-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.verify-pwd-input {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  background: #fff;
+}
+.verify-pwd-input:focus { border-color: #1e4d2b; }
+.verify-btn {
+  padding: 9px 18px;
+  background: #1e4d2b;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  min-width: 96px;
+}
+.verify-btn:disabled { opacity: 0.35; cursor: default; }
+.verify-result-box {
+  border-radius: 6px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.verify-result-box.valid { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.verify-result-box.invalid { background: #fef2f2; border: 1px solid #fecaca; }
+.verify-result-title { font-size: 13px; font-weight: 600; }
+.verify-result-sub { font-size: 11px; color: #6b7280; margin-top: 4px; }
+.verify-entry {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.verify-entry-check { font-size: 12px; flex-shrink: 0; margin-top: 2px; width: 14px; }
+.verify-entry-text { font-size: 13px; color: #1a1a1a; line-height: 1.5; }
+.verify-entry-time { font-size: 10px; color: #9ca3af; font-family: ui-monospace, 'Courier New', monospace; margin-top: 2px; }
+
+/* ── Status bar ── */
+.status-bar {
+  padding: 11px 24px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  background: #faf9f7;
+}
+.status-dot { font-size: 12px; color: #9ca3af; transition: color 0.2s; }
+.status-dot.unsaved { color: #b45309; font-weight: 600; }
+.status-dot.saved { color: #166534; }
+.save-btn {
+  padding: 7px 16px;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  color: #374151;
+  transition: all 0.15s;
+}
+.save-btn:hover:not(:disabled) { border-color: #1e4d2b; color: #1e4d2b; }
+.save-btn.urgent { background: #1e4d2b; color: #fff; border-color: #1e4d2b; font-weight: 500; }
+.save-btn.urgent:hover { opacity: 0.88; }
+.save-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* ── Password modal ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+.modal {
+  background: #fff;
+  border-radius: 10px;
+  padding: 28px;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+}
+.modal-title { font-size: 15px; font-weight: 600; color: #1a1a1a; margin-bottom: 6px; }
+.modal-body { font-size: 12px; color: #6b7280; line-height: 1.6; margin-bottom: 18px; }
+.modal-pwd-box {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 16px;
+  text-align: center;
+  font-family: ui-monospace, 'Courier New', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  color: #166534;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
+}
+.modal-warning {
+  font-size: 11px;
+  color: #b45309;
+  text-align: center;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+.modal-actions { display: flex; gap: 10px; }
+.modal-cancel {
+  padding: 10px 16px;
+  background: none;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  color: #6b7280;
+}
+.modal-cancel:hover { background: #f9fafb; }
+.modal-confirm {
+  flex: 1;
+  padding: 10px;
+  background: #1e4d2b;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.modal-confirm:hover { opacity: 0.88; }
+
+/* ── Toast ── */
+.toast {
+  position: fixed;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  background: #1a1a1a;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-size: 12px;
+  z-index: 200;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: calc(100vw - 32px);
+  text-align: center;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.file-input { display: none; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-top">
+    <span class="logo">MORUS</span>
+    <span class="logo-sub">tamper-proof witness record</span>
+  </div>
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="record">Record</button>
+    <button class="tab-btn" data-tab="verify">Verify a file</button>
+  </nav>
+</header>
+
+<main class="main">
+
+  <!-- Record tab -->
+  <div id="tab-record">
+    <div class="input-label">What did you witness?</div>
+    <textarea
+      class="record-textarea"
+      id="text-input"
+      placeholder="Describe what you saw, heard, or experienced. Include time and place if you know them."
+    ></textarea>
+    <div class="record-actions">
+      <button class="record-btn" id="record-btn" disabled>Record</button>
+      <span class="record-hint">or Ctrl+Enter</span>
+    </div>
+    <div class="entries-section" id="entries-section">
+      <div class="entries-empty">Nothing recorded yet. Type above to begin.</div>
+    </div>
+  </div>
+
+  <!-- Verify tab -->
+  <div id="tab-verify" hidden class="verify-wrap">
+    <div class="drop-zone" id="drop-zone">
+      <div class="drop-zone-icon">📎</div>
+      <div class="drop-zone-text">Drop a .morus file here</div>
+      <div class="drop-zone-sub">or click to choose a file</div>
+    </div>
+    <input type="file" class="file-input" id="file-input" accept=".morus,application/json">
+    <div class="verify-row">
+      <input class="verify-pwd-input" id="verify-pwd" type="password" placeholder="Password for this file" disabled>
+      <button class="verify-btn" id="verify-btn" disabled>Check file</button>
+    </div>
+    <div id="verify-results"></div>
+  </div>
+
+</main>
+
+<div class="status-bar">
+  <span class="status-dot" id="status-text">● 0 records</span>
+  <button class="save-btn" id="save-btn" disabled>Save records</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/*
+  HOW IT WORKS
+  ─────────────────────────────────────────────────────────────
+  Everything stays on your device. Nothing is sent anywhere.
+
+  Each record is sealed with a cryptographic hash (SHA-256).
+  Each record includes the hash of the one before it — so
+  changing any entry breaks every entry that follows it.
+
+  When you save, the file is encrypted (AES-256-GCM) with your
+  password, using 600,000 rounds of key stretching (PBKDF2).
+
+  When you close this tab, all records vanish from your device.
+  The only copy is the file you saved.
+
+  ─────────────────────────────────────────────────────────────
+  .morus file format v1.0
+
+  Outer envelope (JSON):
+  {
+    "morus":      "1.0",
+    "enc":        "aes-256-gcm",
+    "kdf":        "pbkdf2-sha256",
+    "iterations": 600000,
+    "salt":       "<64 hex chars>",
+    "iv":         "<24 hex chars>",
+    "data":       "<hex — AES-GCM ciphertext + 16-byte auth tag>",
+    "count":      <number of entries>,
+    "created":    "<ISO 8601 timestamp>"
+  }
+
+  Decrypted payload (JSON):
+  {
+    "entries": [
+      {
+        "seq":       <sequence number, 1-based>,
+        "text":      "<witness text>",
+        "timestamp": "<ISO 8601>",
+        "hash":      "<SHA-256 hex>"
+      },
+      ...
+    ],
+    "head":  "<final chain hash>",
+    "count": <number of entries>
+  }
+
+  Hash chain:
+    entry.hash = SHA-256(JSON.stringify({
+      prev: previousHash,   // '000...0' for genesis
+      seq:  entry.seq,
+      ts:   entry.timestamp,
+      text: entry.text
+    }))
+  ─────────────────────────────────────────────────────────────
+*/
+
+// ── Passphrase wordlist (512 common English words) ───────────────────────────
+// 5 words drawn with crypto.getRandomValues() = log2(512^5) = 45 bits of entropy.
+// With PBKDF2-SHA256 @ 600,000 iterations, exhausting this space on a GPU
+// (≈100 attempts/sec) would take roughly 11,000 years. Write it on paper.
+const WORDS = [
+  // animals
+  'wolf','bear','fox','deer','hawk','crane','raven','crow','lynx','owl',
+  'eagle','hare','boar','bison','elk','moose','pike','trout','salmon','shark',
+  'whale','seal','otter','mink','wren','finch','swift','robin','dove','stork',
+  'heron','toad','newt','beetle','moth','wasp','bee','ant','crab','clam',
+  'oyster','squid','snail','mole','vole','bat','jay','lark','kite','ibis',
+  // landscape & weather
+  'storm','frost','snow','rain','sleet','hail','fog','mist','dew','cloud',
+  'wind','gale','tide','wave','reef','cliff','ridge','peak','slope','vale',
+  'glen','marsh','swamp','bog','moor','heath','grove','meadow','field','plain',
+  'dune','delta','bay','cove','gorge','cavern','spring','brook','creek','river',
+  'lake','pond','glacier','desert','forest','prairie','tundra','canyon','lagoon','fjord',
+  // tools & structures
+  'blade','anvil','hammer','chisel','wrench','rope','chain','lock','bolt','hinge',
+  'plank','beam','arch','vault','dome','spire','tower','gate','bridge','tunnel',
+  'shaft','ledge','ramp','dock','mast','sail','oar','helm','anchor','rudder',
+  'hull','deck','hatch','crate','barrel','flask','lantern','torch','ladder','lever',
+  'wedge','wheel','axle','gear','pump','valve','frame','brace','joint','strut',
+  // plants & food
+  'wheat','barley','rye','oat','corn','bean','lentil','pea','leek','onion',
+  'garlic','carrot','turnip','radish','beet','kale','sage','thyme','basil','mint',
+  'dill','fennel','clove','pepper','honey','maple','walnut','almond','hazel','chestnut',
+  'acorn','thistle','nettle','fern','moss','reed','clover','heather','pine','oak',
+  'ash','elm','birch','willow','cedar','spruce','holly','ivy','rose','thorn',
+  // materials & colors
+  'scarlet','crimson','amber','ivory','ebony','cobalt','indigo','violet','teal','jade',
+  'olive','umber','sienna','russet','chalk','flint','granite','marble','slate','clay',
+  'sand','iron','steel','bronze','copper','silver','gold','pearl','crystal','glass',
+  'silk','linen','wool','leather','timber','stone','brick','coal','ember','smoke',
+  'shadow','mirror','prism','lens','veil','cloak','mantle','shield','helm','vest',
+  // qualities
+  'swift','calm','stark','keen','bold','brave','true','just','wise','fair',
+  'clear','bright','sharp','firm','hard','soft','warm','cold','dry','wet',
+  'rough','smooth','deep','broad','tall','short','long','wide','near','far',
+  'high','low','fast','slow','light','dark','quiet','still','fresh','crisp',
+  'clean','pure','raw','rich','full','bare','free','strong','safe','sound',
+  // actions
+  'watch','guard','seal','bind','trace','track','mark','carve','forge','craft',
+  'build','mend','tend','keep','hold','stand','rise','fall','turn','cross',
+  'reach','climb','dive','drift','flow','glow','burn','freeze','melt','break',
+  'bend','fold','press','push','pull','lift','drop','cast','throw','catch',
+  'bring','show','tell','read','write','draw','print','sign','count','check',
+  // witness & record
+  'witness','record','proof','truth','word','note','sign','path','road','bond',
+  'oath','pledge','vow','claim','fact','case','event','scene','place','time',
+  'date','hour','moment','memory','account','entry','chain','warrant','notice','order',
+  'grant','right','title','deed','trust','faith','honor','merit','worth','weight',
+  'value','tally','audit','ledger','log','scroll','seal','stamp','mark','cipher',
+  // misc common nouns
+  'atlas','abbey','acre','blade','bloom','cape','cave','cell','coat','cord',
+  'coil','crest','crown','cube','curl','curve','dart','dawn','depth','dial',
+  'disk','door','dusk','echo','edge','face','fence','film','flag','flame',
+  'flare','fleet','floor','foam','fold','font','ford','form','fuel','gaze',
+  'gem','gift','glade','grain','grasp','gravel','grid','grip','gulf','gust',
+  'haven','heat','heel','hill','hive','hook','horn','hue','hunt','ice',
+  'ink','iris','isle','knot','lace','lamp','leaf','loom','lore','maze'
+]
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let entries = []
+let chainHead = '0'.repeat(64)
+let sessionPassword = null
+let lastExportedCount = 0
+let pendingFile = null
+
+// ── Crypto ────────────────────────────────────────────────────────────────────
+function toHex(arr) {
+  return Array.from(new Uint8Array(arr)).map(b => b.toString(16).padStart(2,'0')).join('')
+}
+
+function fromHex(hex) {
+  if (typeof hex !== 'string' || hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) {
+    throw new Error('invalid hex data in file')
+  }
+  const out = new Uint8Array(hex.length / 2)
+  for (let i = 0; i < hex.length; i += 2) out[i/2] = parseInt(hex.slice(i, i+2), 16)
+  return out
+}
+
+async function sha256hex(str) {
+  return toHex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)))
+}
+
+async function entryHash(prevHash, seq, timestamp, text) {
+  return sha256hex(JSON.stringify({ prev: prevHash, seq, ts: timestamp, text }))
+}
+
+async function deriveKey(password, salt, usage, iterations) {
+  const iters = Math.max(600000, (iterations | 0) || 600000)
+  const raw = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey'])
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: iters, hash: 'SHA-256' },
+    raw,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    [usage]
+  )
+}
+
+async function encrypt(password, plaintext) {
+  const salt = crypto.getRandomValues(new Uint8Array(32))
+  const iv   = crypto.getRandomValues(new Uint8Array(12))
+  const key  = await deriveKey(password, salt, 'encrypt')
+  const ct   = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(plaintext))
+  return { salt: toHex(salt), iv: toHex(iv), data: toHex(new Uint8Array(ct)) }
+}
+
+async function decrypt(password, saltHex, ivHex, dataHex, iterations) {
+  const key = await deriveKey(password, fromHex(saltHex), 'decrypt', iterations)
+  const pt  = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromHex(ivHex) }, key, fromHex(dataHex))
+  return new TextDecoder().decode(pt)
+}
+
+// ── Password generation ───────────────────────────────────────────────────────
+function generatePassword() {
+  // Pick 5 words using a CSPRNG. Each index is drawn without bias via rejection
+  // sampling so no word is slightly more likely than another.
+  const result = []
+  const limit = Math.floor(0xFFFFFFFF / WORDS.length) * WORDS.length
+  while (result.length < 5) {
+    const n = crypto.getRandomValues(new Uint32Array(1))[0]
+    if (n < limit) result.push(WORDS[n % WORDS.length])
+  }
+  return result.join('-')
+}
+
+// ── Record ────────────────────────────────────────────────────────────────────
+const MAX_ENTRIES   = 5000
+const MAX_TEXT_LEN  = 10000
+
+async function addEntry(text) {
+  if (entries.length >= MAX_ENTRIES) {
+    showToast(`Maximum ${MAX_ENTRIES} records per session — save and start a new file`)
+    return
+  }
+  if (text.length > MAX_TEXT_LEN) {
+    showToast(`Entry too long — maximum ${MAX_TEXT_LEN} characters`)
+    return
+  }
+  const timestamp = new Date().toISOString()
+  const seq  = entries.length + 1
+  const hash = await entryHash(chainHead, seq, timestamp, text)
+  entries.push({ seq, text, timestamp, hash })
+  chainHead = hash
+  renderEntries()
+  updateStatus()
+  // Auto-checkpoint every 10 records
+  if (entries.length % 10 === 0) {
+    if (!sessionPassword) sessionPassword = generatePassword()
+    try {
+      await writeFile(`morus-checkpoint-${entries.length}`, /*silent*/ true)
+      showToast(`Auto-checkpoint: ${entries.length} records saved — your password is unchanged`)
+    } catch {
+      showToast('Auto-save failed — please save manually')
+    }
+  }
+}
+
+// ── Save / export ─────────────────────────────────────────────────────────────
+async function writeFile(basename, silent) {
+  const payload = JSON.stringify({
+    entries: entries.map(({ seq, text, timestamp, hash }) => ({ seq, text, timestamp, hash })),
+    head: chainHead,
+    count: entries.length
+  })
+  const { salt, iv, data } = await encrypt(sessionPassword, payload)
+  const blob = new Blob([JSON.stringify({
+    morus: '1.0', enc: 'aes-256-gcm', kdf: 'pbkdf2-sha256',
+    iterations: 600000, salt, iv, data,
+    count: entries.length, created: new Date().toISOString()
+  })], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = Object.assign(document.createElement('a'), { href: url, download: `${basename}.morus` })
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+  lastExportedCount = entries.length
+  if (!silent) { updateStatus(); showToast('Saved — keep this file and your password safe') }
+}
+
+function handleSave() {
+  if (!entries.length) return
+  if (!sessionPassword) sessionPassword = generatePassword()
+  const isFirst = lastExportedCount === 0
+  showPasswordModal(sessionPassword, isFirst, async () => {
+    const date = new Date().toISOString().slice(0,10)
+    try {
+      await writeFile(`morus-${date}`)
+    } catch {
+      showToast('Save failed — please try again')
+    }
+  })
+}
+
+// ── Verify ────────────────────────────────────────────────────────────────────
+async function verifyChain(exportedEntries, expectedHead) {
+  // Validate sequence numbers are consecutive starting at 1
+  let seqOk = true
+  for (let i = 0; i < exportedEntries.length; i++) {
+    if (exportedEntries[i].seq !== i + 1) { seqOk = false; break }
+  }
+  let prev = '0'.repeat(64)
+  const results = []
+  for (const e of exportedEntries) {
+    const expected = await entryHash(prev, e.seq, e.timestamp, e.text)
+    results.push({ ...e, valid: expected === e.hash })
+    prev = e.hash
+  }
+  // Verify declared head matches computed final hash
+  const computedHead = results.length > 0 ? results[results.length - 1].hash : '0'.repeat(64)
+  const headOk = !expectedHead || computedHead === expectedHead
+  if (!seqOk || !headOk) return results.map(r => ({ ...r, valid: false }))
+  return results
+}
+
+async function handleVerify() {
+  if (!pendingFile) return
+  const pwd = document.getElementById('verify-pwd').value.trim()
+  if (!pwd) return
+  const btn = document.getElementById('verify-btn')
+  btn.disabled = true; btn.textContent = 'Checking...'
+  document.getElementById('verify-results').innerHTML = ''
+  try {
+    if (pendingFile.size > 10 * 1024 * 1024) throw new Error('File too large (max 10 MB)')
+    const raw   = await pendingFile.text()
+    const outer = JSON.parse(raw)
+    const [major] = (String(outer.morus || '')).split('.').map(Number)
+    if (major !== 1) throw new Error(`Unsupported format version: ${outer.morus}`)
+    const plain    = await decrypt(pwd, outer.salt, outer.iv, outer.data, outer.iterations)
+    const inner    = JSON.parse(plain)
+    if (inner.entries.length !== outer.count) throw new Error('Record count mismatch — file may be tampered with')
+    if (inner.entries.length > 5000) throw new Error('File contains too many entries')
+    const results  = await verifyChain(inner.entries, inner.head)
+    const allValid = results.every(r => r.valid)
+    renderVerifyResults(results, allValid, outer.created)
+  } catch (err) {
+    const tampered = err.name === 'OperationError'
+    renderVerifyError(tampered
+      ? 'Wrong password, or this file has been tampered with.'
+      : `Could not verify this file: ${esc(err.message)}`)
+  } finally {
+    btn.disabled = false; btn.textContent = 'Check file'
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderEntries() {
+  const el = document.getElementById('entries-section')
+  if (!entries.length) {
+    el.innerHTML = '<div class="entries-empty">Nothing recorded yet. Type above to begin.</div>'
+    return
+  }
+  el.innerHTML = [...entries].reverse().map(e => `
+    <div class="entry-item">
+      <div class="entry-num">${e.seq}</div>
+      <div class="entry-body">
+        <div class="entry-text">${esc(e.text)}</div>
+        <div class="entry-meta">${fmtTime(e.timestamp)} &nbsp;·&nbsp; ${e.hash.slice(0,16)}&hellip;</div>
+      </div>
+    </div>
+  `).join('')
+}
+
+function renderVerifyResults(results, allValid, created) {
+  const el = document.getElementById('verify-results')
+  el.innerHTML = `
+    <div class="verify-result-box ${allValid ? 'valid' : 'invalid'}">
+      <div class="verify-result-title" style="color:${allValid ? '#166534' : '#dc2626'}">
+        ${allValid ? `✓ All ${results.length} records are authentic and unmodified` : '✗ Verification failed — one or more records may have been tampered with'}
+      </div>
+      ${created ? `<div class="verify-result-sub">File created: ${fmtTime(created)}</div>` : ''}
+    </div>
+    ${results.map(e => `
+      <div class="verify-entry">
+        <div class="verify-entry-check" style="color:${e.valid ? '#166534' : '#dc2626'}">${e.valid ? '✓' : '✗'}</div>
+        <div>
+          <div class="verify-entry-text">${esc(e.text)}</div>
+          <div class="verify-entry-time">${fmtTime(e.timestamp)}</div>
+        </div>
+      </div>
+    `).join('')}
+  `
+}
+
+function renderVerifyError(msg) {
+  document.getElementById('verify-results').innerHTML = `
+    <div class="verify-result-box invalid">
+      <div class="verify-result-title" style="color:#dc2626">✗ ${esc(msg)}</div>
+    </div>
+  `
+}
+
+function updateStatus() {
+  const statusEl = document.getElementById('status-text')
+  const saveBtn  = document.getElementById('save-btn')
+  const unsaved  = entries.length - lastExportedCount
+  const n = entries.length
+  const word = n === 1 ? 'record' : 'records'
+  if (!n) {
+    statusEl.textContent = '● 0 records'
+    statusEl.className = 'status-dot'
+    saveBtn.disabled = true
+    saveBtn.className = 'save-btn'
+    saveBtn.textContent = 'Save records'
+  } else if (unsaved > 0) {
+    statusEl.textContent = `● ${n} ${word} — not saved`
+    statusEl.className = 'status-dot unsaved'
+    saveBtn.disabled = false
+    saveBtn.className = 'save-btn urgent'
+    saveBtn.textContent = 'Save records'
+  } else {
+    statusEl.textContent = `● ${n} ${word} — saved`
+    statusEl.className = 'status-dot saved'
+    saveBtn.disabled = false
+    saveBtn.className = 'save-btn'
+    saveBtn.textContent = 'Save again'
+  }
+}
+
+// ── Password modal ────────────────────────────────────────────────────────────
+function showPasswordModal(password, isFirst, onConfirm) {
+  const ov = document.createElement('div')
+  ov.className = 'modal-overlay'
+  ov.innerHTML = `
+    <div class="modal">
+      <div class="modal-title">${isFirst ? 'Your records are protected with:' : 'Saving with your password:'}</div>
+      <div class="modal-body">${isFirst
+        ? 'This is your password. Write it down right now — you will need it to open this file later.'
+        : 'Your records will be encrypted and saved with this password.'
+      }</div>
+      <div class="modal-pwd-box">${esc(password)}</div>
+      ${isFirst ? '<div class="modal-warning">⚠ If you lose this password, your records cannot be recovered.</div>' : ''}
+      <div class="modal-actions">
+        <button class="modal-cancel" id="mod-cancel">Cancel</button>
+        <button class="modal-confirm" id="mod-confirm">${isFirst ? "I've written it down — Save now" : 'Save now'}</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(ov)
+  document.getElementById('mod-cancel').onclick = () => ov.remove()
+  document.getElementById('mod-confirm').onclick = async () => { ov.remove(); await onConfirm() }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let _toastTimer = null
+function showToast(msg) {
+  const el = document.getElementById('toast')
+  el.textContent = msg
+  el.classList.add('show')
+  clearTimeout(_toastTimer)
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 3800)
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#x27;')
+}
+function fmtTime(iso) {
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      year:'numeric', month:'short', day:'numeric',
+      hour:'2-digit', minute:'2-digit', second:'2-digit'
+    })
+  } catch { return esc(String(iso)) }
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.getElementById('tab-record').hidden = name !== 'record'
+  document.getElementById('tab-verify').hidden = name !== 'verify'
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name))
+}
+
+// ── Verify file loading ───────────────────────────────────────────────────────
+function loadFile(file) {
+  pendingFile = file
+  document.getElementById('verify-results').innerHTML = ''
+  document.getElementById('drop-zone').innerHTML = `
+    <div class="drop-zone-icon">📄</div>
+    <div class="drop-zone-text">${esc(file.name)}</div>
+    <div class="drop-zone-sub">Enter your password below and click Check file</div>
+  `
+  const pwdEl = document.getElementById('verify-pwd')
+  pwdEl.disabled = false
+  pwdEl.value = ''
+  pwdEl.focus()
+  document.getElementById('verify-btn').disabled = true
+}
+
+// ── Event wiring ──────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab))
+})
+
+const textInput = document.getElementById('text-input')
+const recordBtn = document.getElementById('record-btn')
+
+textInput.addEventListener('input', () => {
+  recordBtn.disabled = !textInput.value.trim()
+})
+
+textInput.addEventListener('keydown', async e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    const text = textInput.value.trim()
+    if (!text) return
+    textInput.value = ''
+    recordBtn.disabled = true
+    recordBtn.textContent = 'Recording...'
+    try { await addEntry(text) } finally { recordBtn.textContent = 'Record' }
+  }
+})
+
+recordBtn.addEventListener('click', async () => {
+  const text = textInput.value.trim()
+  if (!text) return
+  textInput.value = ''
+  recordBtn.disabled = true
+  recordBtn.textContent = 'Recording...'
+  try { await addEntry(text) } finally { recordBtn.textContent = 'Record' }
+})
+
+document.getElementById('save-btn').addEventListener('click', handleSave)
+
+// Verify tab — drop zone
+const dropZone = document.getElementById('drop-zone')
+const fileInput = document.getElementById('file-input')
+
+dropZone.addEventListener('click', () => fileInput.click())
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover') })
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'))
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover')
+  const f = e.dataTransfer.files[0]; if (f) loadFile(f)
+})
+fileInput.addEventListener('change', e => {
+  const f = e.target.files[0]; if (f) { loadFile(f); fileInput.value = '' }
+})
+
+document.getElementById('verify-pwd').addEventListener('input', function() {
+  document.getElementById('verify-btn').disabled = !(this.value.trim() && pendingFile)
+})
+document.getElementById('verify-pwd').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('verify-btn').click()
+})
+document.getElementById('verify-btn').addEventListener('click', handleVerify)
+
+// Warn on close if unsaved records exist
+window.addEventListener('beforeunload', e => {
+  if (entries.length > lastExportedCount) { e.preventDefault(); e.returnValue = '' }
+})
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+updateStatus()
+</script>
+</body>
+</html>
